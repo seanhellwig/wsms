@@ -20,6 +20,7 @@
   },
   "homepage": "https://github.com/seanhellwig/wsms",
   "dependencies": {
+    "bluebird": "^2.9.25",
     "cfenv": "^1.0.0",
     "express": "^4.12.3",
     "mongodb": "^2.0.28",
