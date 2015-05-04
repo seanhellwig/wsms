@@ -1,0 +1,36 @@
+{
+  "questions": [{
+    "a": "I do not find it easy to introduce myself to other people.",
+    "b": "I find it easy to introduce myself to other people."
+  },{
+    "a": "Deadlines stress me out.",
+    "b": "Deadlines do not stress me out."
+  },{
+    "a": "Being adaptable is less important to me than being organized.",
+    "b": "Being adaptable is more important to me than being organized."
+  },{
+    "a": "My home and work environments are quite messy.",
+    "b": "My home and work environments are quite tidy."
+  },{
+    "a": "My mood does not change quickly.",
+    "b": "My mood can change very quickly."
+  },{
+    "a": "My work style is more methodical and organized than it is random.",
+    "b": "My work style is closer to random energy spikes than to a methodical and organized approach."
+  },{
+    "a": "I am not often envious of others.",
+    "b": "I am often envious of others."
+  },{
+    "a": "I do not like to look for novel and unusual ways of doing things.",
+    "b": "I am always excited to look for novel and unusual ways of doing things."
+  },{
+    "a": "When someone is in trouble, I am one of the last people to offer help.",
+    "b": "When someone is in trouble, I am the first person to offer help."
+  },{
+    "a": "I like to engage in conflict and argument.",
+    "b": "I try to avoid conflicts and arguments."
+  },{
+    "a": "You would rather prepare a written report than give a presentation.",
+    "b": "You would rather give a presentation than prepare a written report."
+  }]
+}

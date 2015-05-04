@@ -24,6 +24,7 @@
     "cfenv": "^1.0.0",
     "express": "^4.12.3",
     "mongodb": "^2.0.28",
-    "twilio": "^2.1.0"
+    "twilio": "^2.1.0",
+    "underscore": "^1.8.3"
   }
 }
