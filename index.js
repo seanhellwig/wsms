@@ -1,16 +1,16 @@
 var express = require('express');
 var mongo = require('mongodb');
 var app = express();
-var client = require('twilio')(accountSid, authToken);
-var host = (process.env.VCAP_APP_HOST || 'localhost');
-var port = (process.env.VCAP_APP_PORT || 3000);
+var twilio_client = require('twilio')(process.env.twilio_sid, process.env.twilio_token);
+var cfenv = require('cfenv');
+var appEnv = cfenv.getAppEnv();
 var server;
 
-
-
 app.get('/receive', function(req, resp) {
-
+	console.log('/receive hit');
 });
 
 
-server = app.listen(port, host);
+server = app.listen(appEnv.port || 3000, appEnv.bind || 'localhost', function() {
+	console.log('Up and running!');
+});

@@ -4,7 +4,7 @@
   "description": "World of Watson Hackathon project",
   "main": "index.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "start": "node index.js"
   },
   "repository": {
     "type": "git",
@@ -20,6 +20,7 @@
   },
   "homepage": "https://github.com/seanhellwig/wsms",
   "dependencies": {
+    "cfenv": "^1.0.0",
     "express": "^4.12.3",
     "mongodb": "^2.0.28",
     "twilio": "^2.1.0"
