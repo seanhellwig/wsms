@@ -10,6 +10,8 @@ var server;
 var mongoUrl;
 var services = appEnv.services;
 var db;
+//users controller init
+var users  = require('controllers/users');
    
 if (services['mongodb-2.4']) {
 	mongoUrl = services['mongodb-2.4'][0].credentials.url;
@@ -19,10 +21,13 @@ mongo.connect(mongoUrl, function(err, db) {
   db = db;
 });
 
-app.post('/receive', function(req, res) {
-	var user = req.body.From;
-	var body = req.body.Body;
-});
+// daniel-dev route to user.questionnaire 
+app.post('/receive', users.questionnaire);
+
+// app.post('/receive', function(req, res) {
+// 	var user = req.body.From;
+// 	var body = req.body.Body;
+// });
 
 
 // Test route
