@@ -5,7 +5,7 @@ var cfenv = require('cfenv');
 var appEnv = cfenv.getAppEnv();
 var mongo = require('mongodb').MongoClient;
 var twilio = require('twilio');
-// var twilio_client = twilio.RestClient(appEnv.twilio_sid, appEnv.twilio_token);
+var twilio_client = new twilio.RestClient(appEnv.twilio_sid, appEnv.twilio_client);
 var server;
 var mongoUrl;
 var services = appEnv.services;
@@ -26,17 +26,17 @@ app.post('/receive', function(req, res) {
 
 
 // Test route
-// app.get('/send', function(req, res) {
-//   twilio_client.messages.create({
-//     to:'+13104093364',
-//     from:'TWILIO_NUMBER',
-//     body:'Hello World'
-//   }, function(error, message) {
-//       if (error) {
-//           console.log(error.message);
-//       }
-//   });
-// });
+app.get('/send', function(req, res) {
+  twilio_client.sms.messages.post({
+    to:'',
+    from:'',
+    body:'Hello World'
+  }, function(error, message) {
+      if (error) {
+          console.log(error.message);
+      }
+  });
+});
 
 server = app.listen(appEnv.port || 3000, appEnv.bind || 'localhost', function() {
   console.log('Up and running!');
