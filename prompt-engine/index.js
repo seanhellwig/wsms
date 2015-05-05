@@ -126,10 +126,21 @@ function pushNewPersonalityString(db, user, txtMessage){
 
 function promptEngine(db, phoneNumber, txtMessage){
   return userFindOrCreate(db, phoneNumber).then(function(user){
+    console.log(user)
     if(user.pending_question >= 11) return "All Done!"
     return insertMessage(db, txtMessage).then(function(){
       //console.log(parseTxt(txtMessage))
-      if(user.pending_onboarding == 0){
+      if(txtMessage == "reset"){
+        return db.collection('users').updateAsync({phone_number: phoneNumber}, {
+          $set:{
+            pending_question: 0,
+            pending_onboarding: 0,
+            personality_text: []
+          }
+        }).then(function(){
+          return "Reset complete"
+        })
+      }else if(user.pending_onboarding == 0){
         // user has been inserted if pending_onboarding is 0 incrent it
         // return the onboarding string
         return incrementPending(db, phoneNumber, "pending_onboarding").then(function(){
@@ -144,7 +155,7 @@ function promptEngine(db, phoneNumber, txtMessage){
           return onboarding[1]
         })
       }else if(user.pending_onboarding == 1 && !parseTxt(txtMessage)){
-        return "Sorry, invalid answer!"
+        return "Try again. " + onboarding[0]
       }else if(user.pending_onboarding == 2 && parseTxt(txtMessage)){
         // first question has been asked
         // we need the response to be "true" so we check the txtMessage
@@ -152,7 +163,7 @@ function promptEngine(db, phoneNumber, txtMessage){
           return false
         })
       }else if(user.pending_onboarding == 2 && !parseTxt(txtMessage)){
-        return "Sorry, invalid answer!"
+        return "Try again. " + onboarding[1]
       }else{
         return false
       }

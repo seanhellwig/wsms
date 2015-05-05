@@ -20,10 +20,6 @@ app.use(bodyParser.urlencoded({ extended: false }));
 
 app.use(bodyParser.json());
 
-if (services['mongodb-2.4']) {
-	mongoUrl = services['mongodb-2.4'][0].credentials.url;
-}
-
 // mongo.connect(mongoUrl, function(err, db) {
 //   db = db;
 // });
@@ -31,14 +27,26 @@ if (services['mongodb-2.4']) {
 //var questionAnswered = prompt_engine.questionAnswered
 //var askQuestion = prompt_engine.askQuestion
 
-mongo.connectAsync(mongoUrl).then(function(db){
+//console.log(services.mongolab[0].credentials.uri) works!
+
+mongo.connectAsync(services.mongolab[0].credentials.uri).then(function(db){
+
+	console.log('Mongo connected');
 
   app.post('/receive', function(req, res) {
 
-  	var phoneNumber = req.body.From // user
+		console.log('Recieved Text');
+
+  	var phoneNumber = req.body.From
   	var txtMessage = req.body.Body
 
+		console.log(phoneNumber)
+		console.log(txtMessage)
+
 		return promptEngine(db, phoneNumber, txtMessage).then(function(response){
+
+			console.log(response)
+
       return twilio_post({
           to: phoneNumber,
           from: '+18459432793',
@@ -46,7 +54,10 @@ mongo.connectAsync(mongoUrl).then(function(db){
         }).then(function(message) {
           console.log('Success sent');
           console.log(message);
-        });
+        })
+		}).catch(function(e){
+			console.log(e.message)
+			throw e
 		})
 
 		/*
@@ -79,9 +90,6 @@ mongo.connectAsync(mongoUrl).then(function(db){
 //
 // });
 
-
-  console.log('Mongo connected');
-  database = db
   server = app.listen(appEnv.port || 3000, appEnv.bind || 'localhost', function() {
     console.log('Up and running!');
   });
