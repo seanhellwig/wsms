@@ -3,7 +3,9 @@ var express = require('express');
 var app = express();
 var bodyParser = require('body-parser');
 var cfenv = require('cfenv');
-var prompt_engine = require('./prompt-engine');
+
+var promptEngine = require('./prompt-engine');
+
 var appEnv = cfenv.getAppEnv();
 var mongo = Promise.promisifyAll(require('mongodb'));
 var twilio = require('twilio');
@@ -26,13 +28,33 @@ if (services['mongodb-2.4']) {
 //   db = db;
 // });
 
+var questionAnswered = prompt_engine.questionAnswered
+var askQuestion = prompt_engine.askQuestion
+
 mongo.connectAsync(mongoUrl).then(function(db){
 
   app.post('/receive', function(req, res) {
-    console.log(req.body);
 
-  	var user = req.body.From;
-  	var body = req.body.Body;
+  	var phoneNumber = req.body.From // user
+  	var txtMessage = req.body.Body
+
+		return promptEngine(db, phoneNumber, txtMessage).then(function(response){
+      return twilio_post({
+          to: phoneNumber,
+          from: '+18459432793',
+          body: response
+        }).then(function(message) {
+          console.log('Success sent');
+          console.log(message);
+        });
+		})
+
+		/*
+    return questionAnswered(db, phoneNumber, answer).then(function(response){
+      console.log(response)
+      if(!response) return false;
+      return askAndAnswer(phoneNumber, db)
+    })
 
     return prompt_engine.askQuestion(db, user).then(function(question) {
       console.log(question);
@@ -47,15 +69,16 @@ mongo.connectAsync(mongoUrl).then(function(db){
     }).catch(function(e) {
       console.log(e.message);
     });
+		*/
 
   });
 
 
 // // Test route
 // app.get('/send', function(req, res) {
-//   
+//
 // });
-  
+
 
   console.log('Mongo connected');
   database = db

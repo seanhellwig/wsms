@@ -1,0 +1,6 @@
+{
+  "onboarding":[
+    "Welcome to WSMS Insights! This state-of-the-art SMS service uses IBM Watson to assess individual and group personality profiles. Please enter \"yes\" to continue ☺",
+    "We’re going to show a few statements, for each one please enter \"true\" if you agree with the statement or \"false\" if you disagree with the statement. Enter \"yes\" to continue."
+  ]
+}
