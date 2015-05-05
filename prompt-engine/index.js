@@ -1,20 +1,41 @@
+var util = require("util")
 var _ = require("underscore")
 var Promise = require("bluebird")
 var MongoDB = Promise.promisifyAll(require('mongodb'))
-var prompt = Promise.promisifyAll(require("prompt"))
 var questions = require("./questions.json").questions
 var onboarding = require("./onboarding.json").onboarding
+var recomendation = require("./recomendation.json").recomendation
 var dotty = require("dotty")
 var bluemix = require('../config/bluemix')
 var watson = require('watson-developer-cloud')
-var    extend = require('util')._extend;
-
+var extend = require('util')._extend;
+var sendText = require("../send-text")
 
 if (process.env.VCAP_SERVICES) {
   var env = JSON.parse(process.env.VCAP_SERVICES);
   var mongo = env['mongodb-2.4'][0].credentials;
 } else {
    var mongo = "mongodb://localhost:27017/wsms"
+}
+
+function sentences(personality){
+  var mapped = _.map(personality.children, function(metric){
+    return _.map(metric.children, function(dataSet){
+      return {
+        "name": dataSet.name,
+        "percentage": dataSet.percentage,
+        "parent": metric.id
+      }
+    })
+  })
+  console.log(mapped)
+  var sentence = ["Each of the following traits is a piece of your personality profile:"]
+  _.each(mapped, function(obj){
+    console.log(obj)
+    var ex = util.format("Within %s your %s is %s.", obj.parent, obj.name, (parseInt(obj.percent,10)*100).toString())
+    sentence.push(ex)
+  })
+  return sentences
 }
 
 // if bluemix credentials exists, then override local
@@ -65,6 +86,8 @@ function userFindOrCreate(db, phoneNumber){
         phone_number: phoneNumber,
         pending_question: 0,
         pending_onboarding: 0,
+        pending_intro: 0,
+        pending_recomendation: 0,
         messages: [],
         personality_text: []
       }
@@ -94,7 +117,9 @@ function insertMessage(db, user, txtMessage){
       $push:{
         messages: {
           "pending_question":user.pending_question,
-          "pending_onboarding":user.pending_question,
+          "pending_onboarding":user.pending_onboarding,
+          "pending_intro":user.pending_intro,
+          "pending_recomendation":user.pending_recomendation,
           "txtMessage": txtMessage
         }
       }
@@ -139,59 +164,34 @@ function pushNewPersonalityString(db, user, txtMessage){
     })
 }
 
-function recursive(db, phoneNumber, txtMessage){
-  return promptEngine(db, phoneNumber, txtMessage).then(function(response){
-    return prompt.getAsync([response]).then(function(result){
-      var txtMessage = _.values(result)[0]
-      return recursive(db, phoneNumber, txtMessage)
-    })
-  })
-}
-
-function terminal(){
-  return MongoDB.connectAsync(mongo).then(function(db){
-    return prompt.getAsync(["What's your phone number?"]).then(function(result){
-      var phoneNumber = _.values(result)[0]
-      return recursive(db, phoneNumber, "Hello")
-    })
-  })
-}
-
-function getInsights(text, cb){
-  personalityInsights.profile({
-    "personality": text
-  }, function(err, profile) {
-    if (err) {
-      if (err.message){
-        err = { error: err.message };
-        console.log('error in getInsights function', err);
-      }
-      cb ('error');
-    }
-    else
-      cb(profile);
-  });
-}
-
-var getInsightsAsync = Promise.promisify(getInsights)
+var getInsightsAsync = Promise.promisify(personalityInsights.profile, personalityInsights)
 
 function promptEngine(db, phoneNumber, txtMessage){
+
   return userFindOrCreate(db, phoneNumber).then(function(user){
-    console.log(user)
-    if(user.pending_question >= 11) return false
+
     return insertMessage(db, txtMessage).then(function(){
-      //console.log(parseTxt(txtMessage))
-      if(txtMessage == "reset"){
-        return db.collection('users').updateAsync({phone_number: phoneNumber}, {
-          $set:{
-            pending_question: 0,
-            pending_onboarding: 0,
-            personality_text: []
-          }
-        }).then(function(){
-          return "Reset complete"
-        })
-      }else if(user.pending_onboarding == 0){
+      if(txtMessage.toLowerCase() !== "reset") return false
+      return db.collection('users').updateAsync({
+        phone_number: phoneNumber
+      }, {
+        $set:{
+          pending_question: 0,
+          pending_onboarding: 0,
+          pending_intro: 0,
+          pending_recomendation: 0,
+          personality_text: []
+        }
+      }).then(function(){
+        return "Reset complete!"
+      })
+    }).then(function(response){
+      if(response) return response
+      if(user.pending_question >= 11) return "All Done!"
+      return false
+    }).then(function(response){
+      if(response) return response
+      if(user.pending_onboarding == 0){
         // user has been inserted if pending_onboarding is 0 incrent it
         // return the onboarding string
         return incrementPending(db, phoneNumber, "pending_onboarding").then(function(){
@@ -219,8 +219,6 @@ function promptEngine(db, phoneNumber, txtMessage){
         return false
       }
     }).then(function(response){
-      // if false then we're done with oboarding
-      //console.log(response)
       if(response) return response
       return Promise.all([
         incrementPending(db, phoneNumber, "pending_question"),
@@ -229,23 +227,53 @@ function promptEngine(db, phoneNumber, txtMessage){
         var nextObjStr = user.pending_question+".a"
         var questionExists = dotty.exists(questions, nextObjStr)
         var question = dotty.get(questions, nextObjStr)
-        //console.log(questionExists)
-        //console.log(question)
         if(questionExists) return question
         return false
       })
-    }).then(function(){
+    }).then(function(response){
       if(response) return response
-      db.collection("users").findOneAsync({"phone_number": phoneNumber}).then(function(user){
-        var personalityText = user.personality_text.join(" ")
-        return getInsightsAsync(personalityText).then(function(personalityObject){
-          return db.collection("users").update({"phone_number": phoneNumber}, {
-            "$set": {
-              "personality": personalityObject
-            }
+      return Promise.all([
+        incrementPending(db, phoneNumber, "pending_intro"),
+      ]).then(function(){
+        if(user.pending_intro == 0 && !parseTxt(txtMessage)){
+          return "Now we're going to ask some general questions, answer freely."
+        }else{
+          return false
+        }
+      })
+    }).then(function(response){
+      if(response) return response
+      return Promise.all([
+        incrementPending(db, phoneNumber, "pending_recomendation"),
+      ]).then(function(){
+        var nextObjStr = user.pending_recomendation
+        var questionExists = dotty.exists(recomendation, nextObjStr)
+        var question = dotty.get(recomendation, nextObjStr)
+        if(questionExists) return question
+        return false
+      })
+    }).then(function(response){
+      if(response == "All Done!"){
+        db.collection("users").findOneAsync({"phone_number": phoneNumber}).then(function(user){
+          var personalityText = user.personality_text.join(" ")
+          return getInsightsAsync({"text": personalityText}).then(function(personalityObject){
+            return db.collection("users").updateAsync(
+              {
+                "phone_number": phoneNumber
+              }, {
+              "$set": {
+                "personality": personalityObject[0].tree
+              }
+            }).then(function(){
+              var personalitySentences = sentences(personalityObject[0].tree)
+              return Promise.map(personalitySentences, function(sentence){
+                return sendText(phoneNumber, sentence)
+              })
+            })
           })
         })
-      })
+      }
+      if(response) return response
       return "All done!"
     })
   })

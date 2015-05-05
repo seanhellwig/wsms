@@ -3,17 +3,14 @@ var express = require('express');
 var app = express();
 var bodyParser = require('body-parser');
 var cfenv = require('cfenv');
-
 var promptEngine = require('./prompt-engine');
-
+var sendText = require("./send-text")
 var appEnv = cfenv.getAppEnv();
 var mongo = Promise.promisifyAll(require('mongodb'));
-var twilio = require('twilio');
-var twilio_client = new twilio.RestClient(process.env.TWILIO_SID, process.env.TWILIO_TOKEN);
-var twilio_post = Promise.promisify(twilio_client.sms.messages.post);
-var server;
 var mongoUrl = 'mongodb://localhost:27017/wsms';
 var services = appEnv.services;
+
+var server;
 var database;
 
 app.use(bodyParser.urlencoded({ extended: false }));
@@ -44,17 +41,9 @@ mongo.connectAsync(services.mongolab[0].credentials.uri).then(function(db){
 		console.log(txtMessage)
 
 		return promptEngine(db, phoneNumber, txtMessage).then(function(response){
-
-			console.log(response)
-
-      return twilio_post({
-          to: phoneNumber,
-          from: '+18459432793',
-          body: response
-        }).then(function(message) {
-          console.log('Success sent');
-          console.log(message);
-        })
+			return sendText(phoneNumber, response).then(function(){
+				return res.send("ok")
+			})
 		}).catch(function(e){
 			console.log(e.message)
 			throw e
