@@ -5,6 +5,10 @@ var prompt = Promise.promisifyAll(require("prompt"))
 var questions = require("./questions.json").questions
 var onboarding = require("./onboarding.json").onboarding
 var dotty = require("dotty")
+var bluemix = require('../config/bluemix')
+var watson = require('watson-developer-cloud')
+var    extend = require('util')._extend;
+
 
 if (process.env.VCAP_SERVICES) {
   var env = JSON.parse(process.env.VCAP_SERVICES);
@@ -12,6 +16,17 @@ if (process.env.VCAP_SERVICES) {
 } else {
    var mongo = "mongodb://localhost:27017/wsms"
 }
+
+// if bluemix credentials exists, then override local
+var credentials = extend({
+    version: 'v2',
+    url: '<url>',
+    username: '<username>',
+    password: '<password>'
+}, bluemix.getServiceCreds('personality_insights')); // VCAP_SERVICES
+
+// initiate personality insights
+var personalityInsights = new watson.personality_insights(credentials);
 
 function fallbackDB(db){
   if(db){
@@ -124,10 +139,46 @@ function pushNewPersonalityString(db, user, txtMessage){
     })
 }
 
+function recursive(db, phoneNumber, txtMessage){
+  return promptEngine(db, phoneNumber, txtMessage).then(function(response){
+    return prompt.getAsync([response]).then(function(result){
+      var txtMessage = _.values(result)[0]
+      return recursive(db, phoneNumber, txtMessage)
+    })
+  })
+}
+
+function terminal(){
+  return MongoDB.connectAsync(mongo).then(function(db){
+    return prompt.getAsync(["What's your phone number?"]).then(function(result){
+      var phoneNumber = _.values(result)[0]
+      return recursive(db, phoneNumber, "Hello")
+    })
+  })
+}
+
+function getInsights(text, cb){
+  personalityInsights.profile({
+    "personality": text
+  }, function(err, profile) {
+    if (err) {
+      if (err.message){
+        err = { error: err.message };
+        console.log('error in getInsights function', err);
+      }
+      cb ('error');
+    }
+    else
+      cb(profile);
+  });
+}
+
+var getInsightsAsync = Promise.promisify(getInsights)
+
 function promptEngine(db, phoneNumber, txtMessage){
   return userFindOrCreate(db, phoneNumber).then(function(user){
     console.log(user)
-    if(user.pending_question >= 11) return "All Done!"
+    if(user.pending_question >= 11) return false
     return insertMessage(db, txtMessage).then(function(){
       //console.log(parseTxt(txtMessage))
       if(txtMessage == "reset"){
@@ -183,29 +234,22 @@ function promptEngine(db, phoneNumber, txtMessage){
         if(questionExists) return question
         return false
       })
-    }).then(function(response){
+    }).then(function(){
       if(response) return response
-      return "Sorry, We're all done, for now!"
+      db.collection("users").findOneAsync({"phone_number": phoneNumber}).then(function(user){
+        var personalityText = user.personality_text.join(" ")
+        return getInsightsAsync(personalityText).then(function(personalityObject){
+          return db.collection("users").update({"phone_number": phoneNumber}, {
+            "$set": {
+              "personality": personalityObject
+            }
+          })
+        })
+      })
+      return "All done!"
     })
   })
 }
 
-function recursive(db, phoneNumber, txtMessage){
-  return promptEngine(db, phoneNumber, txtMessage).then(function(response){
-    return prompt.getAsync([response]).then(function(result){
-      var txtMessage = _.values(result)[0]
-      return recursive(db, phoneNumber, txtMessage)
-    })
-  })
-}
-
-function terminal(){
-  return MongoDB.connectAsync(mongo).then(function(db){
-    return prompt.getAsync(["What's your phone number?"]).then(function(result){
-      var phoneNumber = _.values(result)[0]
-      return recursive(db, phoneNumber, "Hello")
-    })
-  })
-}
 
 module.exports = promptEngine
