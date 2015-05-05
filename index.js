@@ -28,8 +28,8 @@ if (services['mongodb-2.4']) {
 //   db = db;
 // });
 
-var questionAnswered = prompt_engine.questionAnswered
-var askQuestion = prompt_engine.askQuestion
+//var questionAnswered = prompt_engine.questionAnswered
+//var askQuestion = prompt_engine.askQuestion
 
 mongo.connectAsync(mongoUrl).then(function(db){
 
