@@ -19,21 +19,19 @@ if (process.env.VCAP_SERVICES) {
 }
 
 function sentences(personality){
-  var mapped = _.map(personality.children, function(metric){
-    return _.map(metric.children, function(dataSet){
+  var sentences =  _.map(personality.children, function(children){
+    return _.map(children.children, function(deepChildren){
       return {
-        "name": dataSet.name,
-        "percentage": dataSet.percentage,
-        "parent": metric.id
+        "name": deepChildren.name,
+        "percentage": deepChildren.percentage,
+        "parent": children.id
       }
     })
   })
-  console.log(mapped)
-  var sentence = ["Each of the following traits is a piece of your personality profile:"]
-  _.each(mapped, function(obj){
-    console.log(obj)
-    var ex = util.format("Within %s your %s is %s.", obj.parent, obj.name, (parseInt(obj.percent,10)*100).toString())
-    sentence.push(ex)
+  sentences = _.flatten(sentences)
+  sentences = _.map(sentences, function(sentence){
+    var percent = Math.ceil(sentence.percentage*100)
+    return util.format("Within %s your %s is %d%.", sentence.parent, sentence.name, percent)
   })
   return sentences
 }
@@ -188,6 +186,7 @@ function promptEngine(db, phoneNumber, txtMessage){
     }).then(function(response){
       if(response) return response
       if(user.pending_question >= 11) return "All Done!"
+      //if(user.pending_recomendation >= 3) return "All Done!"
       return false
     }).then(function(response){
       if(response) return response
@@ -220,37 +219,15 @@ function promptEngine(db, phoneNumber, txtMessage){
       }
     }).then(function(response){
       if(response) return response
+      var nextObjStr = user.pending_question+".a"
+      var questionExists = dotty.exists(questions, nextObjStr)
+      var question = dotty.get(questions, nextObjStr)
+      if(!questionExists) return false
       return Promise.all([
         incrementPending(db, phoneNumber, "pending_question"),
         pushNewPersonalityString(db, user, txtMessage),
       ]).then(function(){
-        var nextObjStr = user.pending_question+".a"
-        var questionExists = dotty.exists(questions, nextObjStr)
-        var question = dotty.get(questions, nextObjStr)
-        if(questionExists) return question
-        return false
-      })
-    }).then(function(response){
-      if(response) return response
-      return Promise.all([
-        incrementPending(db, phoneNumber, "pending_intro"),
-      ]).then(function(){
-        if(user.pending_intro == 0 && !parseTxt(txtMessage)){
-          return "Now we're going to ask some general questions, answer freely."
-        }else{
-          return false
-        }
-      })
-    }).then(function(response){
-      if(response) return response
-      return Promise.all([
-        incrementPending(db, phoneNumber, "pending_recomendation"),
-      ]).then(function(){
-        var nextObjStr = user.pending_recomendation
-        var questionExists = dotty.exists(recomendation, nextObjStr)
-        var question = dotty.get(recomendation, nextObjStr)
-        if(questionExists) return question
-        return false
+        return question
       })
     }).then(function(response){
       if(response == "All Done!"){
@@ -266,8 +243,10 @@ function promptEngine(db, phoneNumber, txtMessage){
               }
             }).then(function(){
               var personalitySentences = sentences(personalityObject[0].tree)
-              return Promise.map(personalitySentences, function(sentence){
-                return sendText(phoneNumber, sentence)
+              return sendText(phoneNumber, "Each of the following traits is a piece of your personality profile:").delay(1500).then(function(){
+                return Promise.map(personalitySentences, function(sentence){
+                  return sendText(phoneNumber, sentence)
+                })
               })
             })
           })
@@ -281,3 +260,32 @@ function promptEngine(db, phoneNumber, txtMessage){
 
 
 module.exports = promptEngine
+
+/*
+    }).then(function(response){
+      if(response) return response
+      return Promise.all([
+        incrementPending(db, phoneNumber, "pending_intro"),
+      ]).then(function(){
+        if(user.pending_intro == 0){
+          return "Can I ask you some other questions? Please enter \"yes\" to continue."
+        }else if(user.pending_intro == 0 && !parseTxt(txtMessage)){
+          return false
+        }else if(user.pending_intro == 0 && !parseTxt(txtMessage)){
+          return "Aww, ok! Have a nice day!"
+        }else{
+          return false
+        }
+      })
+    }).then(function(response){
+      if(response) return response
+      var nextObjStr = user.pending_recomendation
+      var recomendationExists = dotty.exists(recomendation, nextObjStr)
+      var recomendation = dotty.get(recomendation, nextObjStr)
+      if(!recomendationExists) return false
+      return Promise.all([
+        incrementPending(db, phoneNumber, "pending_recomendation"),
+      ]).then(function(){
+        return recomendation
+      })
+*/

@@ -1,27 +1,25 @@
 var _ = require('underscore')
 var personality = require("./personality")
+var util = require("util")
 
 function sentences(personality){
-  var mapped = _.map(personality.children, function(metric){
-    return _.map(metric.children, function(dataSet){
+  var sentences =  _.map(personality.children, function(children){
+    return _.map(children.children, function(deepChildren){
       return {
-        "name": dataSet.name,
-        "percentage": dataSet.percentage,
-        "parent": metric.id
+        "name": deepChildren.name,
+        "percentage": deepChildren.percentage,
+        "parent": children.id
       }
     })
   })
-  console.log(mapped)
-
-/*
-  var sentence = ["Each of the following traits is a piece of your personality profile:"]
-  _.each(mapped, function(obj){
-    console.log(obj)
-    var ex = util.format("Within %s your %s is %s.", obj.parent, obj.name, (parseInt(obj.percent,10)*100).toString())
-    sentence.push(ex)
+  sentences = _.flatten(sentences)
+  sentences = _.map(sentences, function(sentence){
+    var percent = Math.ceil(sentence.percentage*100)
+    return util.format("Within %s your %s is %d%.", sentence.parent, sentence.name, percent)
   })
+  sentences.unshift("Each of the following traits is a piece of your personality profile:")
   return sentences
-*/
 }
 
-//console.log(sentences(personality)[0])
+var x = sentences(personality)
+console.log(x)
